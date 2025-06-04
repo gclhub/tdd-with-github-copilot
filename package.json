@@ -1,0 +1,24 @@
+{
+  "name": "mortgage-payment-calculator",
+  "version": "1.0.0",
+  "description": "A financial calculator for computing mortgage payments based on down payment, interest rate, and loan length",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "ts-node src/index.ts",
+    "build": "tsc",
+    "test": "ts-node src/tests/calculator.test.ts"
+  },
+  "keywords": ["mortgage", "calculator", "finance"],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@types/node": "^22.15.29",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@types/inquirer": "^9.0.8",
+    "inquirer": "^12.6.3"
+  }
+}
