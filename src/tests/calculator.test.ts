@@ -2,88 +2,82 @@ import { MortgageCalculator } from '../models/MortgageCalculator';
 import { formatCurrency, formatPercentage } from '../utils/formatters';
 
 /**
- * Simple test framework
+ * Test suite for the basic mortgage calculator functionality
  */
-function test(name: string, testFn: () => boolean): void {
-  try {
-    const passed = testFn();
-    if (passed) {
-      console.log(`✅ ${name}`);
-    } else {
-      console.log(`❌ ${name}`);
-    }
-  } catch (error) {
-    console.log(`❌ ${name} - Error: ${(error as Error).message}`);
-  }
-}
+describe('Mortgage Calculator', () => {
+  let calculator: MortgageCalculator;
+  
+  beforeEach(() => {
+    calculator = new MortgageCalculator();
+  });
 
-/**
- * Test cases for the mortgage calculator
- */
-function runTests(): void {
-  const calculator = new MortgageCalculator();
-  
-  console.log('\n----- MORTGAGE CALCULATOR TESTS -----\n');
-  
-  // Test case 1: $300,000 property, $60,000 down payment (20%), 5% interest, 30-year term
-  test('Standard mortgage calculation', () => {
-    const propertyPrice = 300000;
-    const downPayment = 60000;
-    const interestRate = 5;
+  /**
+   * Standard mortgage calculation test
+   * Verifies that the monthly payment calculation is correct
+   * for typical mortgage scenarios
+   */
+  test('should calculate standard mortgage payment correctly', () => {
+    // Arrange
+    const loanAmount = 200000;
+    const interestRate = 5.5;
     const loanTerm = 30;
     
-    const loanAmount = propertyPrice - downPayment;
+    // Act
     const monthlyPayment = calculator.calculateMonthlyPayment(
-      loanAmount,
+      loanAmount, 
       interestRate,
       loanTerm
     );
     
-    // Expected monthly payment around $1,288.37 for these parameters
-    const expectedPayment = 1288.37;
-    const isWithinRange = Math.abs(monthlyPayment - expectedPayment) < 1; // Within $1
+    // Assert
+    // Calculate expected payment using the formula
+    const monthlyRate = interestRate / 100 / 12;
+    const numberOfPayments = loanTerm * 12;
+    const expectedPayment = loanAmount * 
+      (monthlyRate * Math.pow(1 + monthlyRate, numberOfPayments)) / 
+      (Math.pow(1 + monthlyRate, numberOfPayments) - 1);
     
-    // Display details of calculation
-    const totalPayment = calculator.calculateTotalPayment(monthlyPayment, loanTerm);
-    const totalInterest = calculator.calculateTotalInterest(totalPayment, loanAmount);
+    // Log for visibility
+    console.log(`Monthly Payment: ${formatCurrency(monthlyPayment)}`);
+    console.log(`Expected Payment: ${formatCurrency(expectedPayment)}`);
     
-    console.log(`  Property Price: ${formatCurrency(propertyPrice)}`);
-    console.log(`  Down Payment: ${formatCurrency(downPayment)} (${formatPercentage(downPayment/propertyPrice*100)})`);
-    console.log(`  Loan Amount: ${formatCurrency(loanAmount)}`);
-    console.log(`  Interest Rate: ${formatPercentage(interestRate)}`);
-    console.log(`  Monthly Payment: ${formatCurrency(monthlyPayment)}`);
-    console.log(`  Total Payments: ${formatCurrency(totalPayment)}`);
-    console.log(`  Total Interest: ${formatCurrency(totalInterest)}`);
-    
-    return isWithinRange;
+    expect(monthlyPayment).toBeCloseTo(expectedPayment, 2);
   });
   
-  // Test case 2: Zero interest rate
-  test('Zero interest rate calculation', () => {
-    const propertyPrice = 200000;
-    const downPayment = 40000;
+  /**
+   * Zero interest rate test
+   * Mortgage calculator should handle the edge case of 0% interest rate
+   */
+  test('should calculate payment correctly with 0% interest rate', () => {
+    // Arrange
+    const loanAmount = 150000;
     const interestRate = 0;
     const loanTerm = 15;
     
-    const loanAmount = propertyPrice - downPayment;
+    // Act
     const monthlyPayment = calculator.calculateMonthlyPayment(
       loanAmount,
       interestRate,
       loanTerm
     );
+    
+    // Assert
     const expectedPayment = loanAmount / (loanTerm * 12);
     
-    // Should be exact match for zero interest
-    const isExact = Math.abs(monthlyPayment - expectedPayment) < 0.01;
+    // Log for visibility
+    console.log(`Monthly Payment (0% interest): ${formatCurrency(monthlyPayment)}`);
+    console.log(`Expected Payment: ${formatCurrency(expectedPayment)}`);
     
-    console.log(`  Monthly Payment (0% interest): ${formatCurrency(monthlyPayment)}`);
-    console.log(`  Expected Payment: ${formatCurrency(expectedPayment)}`);
-    
-    return isExact;
+    expect(monthlyPayment).toBeCloseTo(expectedPayment, 2);
   });
   
-  // Test case 3: Amortization schedule correctness
-  test('Amortization schedule calculation', () => {
+  /**
+   * Amortization schedule test
+   * Verifies that the generated amortization schedule correctly
+   * accounts for all payments and pays off the loan
+   */
+  test('should generate correct amortization schedule', () => {
+    // Arrange
     const loanAmount = 100000;
     const interestRate = 4;
     const loanTerm = 10;
@@ -95,7 +89,7 @@ function runTests(): void {
       loanTerm
     );
     
-    // Generate full amortization schedule
+    // Act
     const schedule = calculator.generateAmortizationSchedule(
       loanAmount,
       monthlyPayment,
@@ -103,21 +97,19 @@ function runTests(): void {
       loanTerm
     );
     
+    // Assert
+    // Log for visibility
+    console.log(`Schedule Entries: ${schedule.length} (expected: ${loanTerm * 12})`);
+    console.log(`Final Balance: ${formatCurrency(schedule[schedule.length - 1].remainingBalance)}`);
+    
     // Verify we have the right number of payments
-    const hasCorrectPayments = schedule.length === loanTerm * 12;
+    expect(schedule.length).toBe(loanTerm * 12);
     
     // Verify final balance is close to zero
-    const finalBalance = schedule[schedule.length - 1].remainingBalance;
-    const isBalanceNearZero = finalBalance < 1;
+    expect(schedule[schedule.length - 1].remainingBalance).toBeLessThan(1);
     
-    console.log(`  Schedule Entries: ${schedule.length} (expected: ${loanTerm * 12})`);
-    console.log(`  Final Balance: ${formatCurrency(finalBalance)}`);
-    
-    return hasCorrectPayments && isBalanceNearZero;
+    // Verify that the sum of all principal payments equals the loan amount
+    const totalPrincipal = schedule.reduce((sum, payment) => sum + payment.principal, 0);
+    expect(totalPrincipal).toBeCloseTo(loanAmount, 0);
   });
-  
-  console.log('\n----------------------------------\n');
-}
-
-// Run all tests
-runTests();
+});
