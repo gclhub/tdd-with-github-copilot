@@ -115,4 +115,111 @@ export class MortgageCalculator {
 
     return schedule;
   }
+
+  /**
+   * Calculate the impact of making extra monthly payments
+   * 
+   * @param loanAmount - The loan amount
+   * @param interestRate - The annual interest rate (as a percentage)
+   * @param loanTermYears - The loan term in years
+   * @param extraMonthlyPayment - The extra amount to pay monthly
+   * @returns Object with impact details
+   */
+  calculateExtraPaymentImpact(
+    loanAmount: number,
+    interestRate: number,
+    loanTermYears: number,
+    extraMonthlyPayment: number
+  ): {
+    newLoanTermMonths: number;
+    monthsSaved: number;
+    interestSaved: number;
+    totalInterestStandard: number;
+    totalInterestWithExtra: number;
+  } {
+    // Validate inputs
+    if (loanAmount <= 0) {
+      throw new Error("Loan amount must be positive");
+    }
+    if (interestRate < 0) {
+      throw new Error("Interest rate cannot be negative");
+    }
+    if (loanTermYears <= 0) {
+      throw new Error("Loan term must be positive");
+    }
+    if (extraMonthlyPayment < 0) {
+      throw new Error("Extra payment cannot be negative");
+    }
+
+    // Convert loan term from years to months
+    const loanTermMonths = loanTermYears * 12;
+    
+    // Calculate standard monthly payment
+    const standardMonthlyPayment = this.calculateMonthlyPayment(
+      loanAmount,
+      interestRate,
+      loanTermYears
+    );
+    
+    // Calculate total payment and interest for the standard payment plan
+    const totalStandardPayment = standardMonthlyPayment * loanTermMonths;
+    const totalStandardInterest = totalStandardPayment - loanAmount;
+    
+    // Special case: if extra payment is 0, there's no impact
+    if (extraMonthlyPayment === 0) {
+      return {
+        newLoanTermMonths: loanTermMonths,
+        monthsSaved: 0,
+        interestSaved: 0,
+        totalInterestStandard: totalStandardInterest,
+        totalInterestWithExtra: totalStandardInterest
+      };
+    }
+    
+    // Calculate new loan term with extra payments
+    // Convert annual interest rate to monthly rate (and decimal)
+    const monthlyRate = interestRate / 100 / 12;
+    
+    // Initialize variables for amortization calculation
+    let balance = loanAmount;
+    let month = 0;
+    let totalInterestWithExtra = 0;
+    
+    // Calculate new payment schedule with extra payments
+    while (balance > 0 && month < loanTermMonths * 2) { // Safety limit to prevent infinite loops
+      month++;
+      
+      // Calculate interest for this month
+      const interestThisMonth = balance * monthlyRate;
+      totalInterestWithExtra += interestThisMonth;
+      
+      // Calculate total payment (standard + extra)
+      const totalPayment = standardMonthlyPayment + extraMonthlyPayment;
+      
+      // Apply payment
+      balance -= (totalPayment - interestThisMonth);
+      
+      // Handle final payment adjustment
+      if (balance < 0) {
+        // When balance becomes negative, we've overpaid
+        // Since balance is negative, adding it to totalInterestWithExtra reduces the interest
+        // This accounts for the partial month's interest that shouldn't be charged
+        totalInterestWithExtra += balance * monthlyRate;
+        balance = 0;
+      }
+    }
+    
+    // Calculate the impact
+    const newLoanTermMonths = month;
+    const monthsSaved = loanTermMonths - newLoanTermMonths;
+    const interestSaved = totalStandardInterest - totalInterestWithExtra;
+    
+    return {
+      newLoanTermMonths,
+      monthsSaved,
+      interestSaved,
+      totalInterestStandard: totalStandardInterest,
+      totalInterestWithExtra
+    };
+  }
 }
